@@ -7,3 +7,8 @@ cover.out
 scripts
 .env
 dist
+fider
+fider.exe
+*.log
+e2e
+.github
