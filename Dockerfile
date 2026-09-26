@@ -21,7 +21,7 @@ RUN make build-server COMMITHASH="$COMMITHASH" VERSION="$VERSION"
 
 
 
-FROM node:22-bookworm AS frontend-builder
+FROM node:26-bookworm AS frontend-builder
 
 WORKDIR /build
 
