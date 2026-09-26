@@ -1,67 +1,65 @@
-# syntax=docker/dockerfile:1
+FROM golang:1.25-bookworm AS backend-builder
 
-#####################
-### Server Build Step
-#####################
-FROM --platform=${TARGETPLATFORM:-linux/amd64} golang:1.25-bookworm AS server-builder
-
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     gcc \
-    libc6-dev
+    libc6-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir /server
-WORKDIR /server
+WORKDIR /build
 
 COPY go.mod go.sum ./
-RUN --mount=type=cache,target=/go/pkg/mod \
-    go mod download
-
-COPY . ./
-
-ARG COMMITHASH
-ARG VERSION
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/root/.cache/go-build \
-    COMMITHASH=${COMMITHASH} VERSION=${VERSION} GOOS=${TARGETOS} GOARCH=${TARGETARCH} make build-server
-#################
-### UI Build Step
-#################
-FROM --platform=${TARGETPLATFORM:-linux/amd64} node:22-bookworm AS ui-builder 
-
-WORKDIR /ui
-
-COPY package.json package-lock.json ./
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci --maxsockets 1
+RUN go mod download
 
 COPY . .
+
+ARG COMMITHASH=local
+ARG VERSION=development
+
+RUN make build-server COMMITHASH="$COMMITHASH" VERSION="$VERSION"
+
+
+
+
+FROM node:22-bookworm AS frontend-builder
+
+WORKDIR /build
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+
 RUN make build-ssr
 RUN make build-ui
 
-################
-### Runtime Step
-################
-FROM --platform=${TARGETPLATFORM:-linux/amd64} debian:bookworm-slim
 
-RUN apt-get update && apt-get install -y ca-certificates
+
+
+
+FROM debian:bookworm-slim AS runtime
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-COPY --from=server-builder /server/migrations /app/migrations
-COPY --from=server-builder /server/views /app/views
-COPY --from=server-builder /server/locale /app/locale
-COPY --from=server-builder /server/LICENSE /app
-COPY --from=server-builder /server/fider /app
-COPY --from=server-builder /server/static /app/static
+COPY --from=backend-builder /build/fider ./fider
+COPY --from=backend-builder /build/migrations ./migrations
+COPY --from=backend-builder /build/views ./views
+COPY --from=backend-builder /build/locale ./locale
+COPY --from=backend-builder /build/static ./static
+COPY --from=backend-builder /build/LICENSE ./LICENSE
 
-COPY --from=ui-builder /ui/favicon.png /app
-COPY --from=ui-builder /ui/dist /app/dist
-COPY --from=ui-builder /ui/robots.txt /app
-COPY --from=ui-builder /ui/ssr.js /app
+COPY --from=frontend-builder /build/dist ./dist
+COPY --from=frontend-builder /build/ssr.js ./ssr.js
+COPY --from=frontend-builder /build/favicon.png ./favicon.png
+COPY --from=frontend-builder /build/robots.txt ./robots.txt
 
 EXPOSE 3000
 
-HEALTHCHECK --timeout=5s CMD ./fider ping
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD ["./fider", "ping"]
 
-CMD ./fider migrate && ./fider
+CMD ["sh", "-c", "./fider migrate && exec ./fider"]
