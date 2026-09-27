@@ -43,6 +43,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+RUN groupadd --system fider \
+    && useradd --system --gid fider --home-dir /app --shell /usr/sbin/nologin fider
+
 WORKDIR /app
 
 COPY --from=backend-builder /build/fider ./fider
@@ -58,6 +61,10 @@ COPY --from=frontend-builder /build/favicon.png ./favicon.png
 COPY --from=frontend-builder /build/robots.txt ./robots.txt
 
 EXPOSE 3000
+
+RUN chown -R fider:fider /app
+
+USER fider
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD ["./fider", "ping"]
