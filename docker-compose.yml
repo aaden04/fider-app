@@ -9,7 +9,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: ${DATABASE_URL_CONTAINER}
+      DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
       EMAIL_SMTP_HOST: mailhog
       EMAIL_SMTP_PORT: "1025"
     depends_on:
