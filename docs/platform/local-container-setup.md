@@ -106,7 +106,7 @@ Compose creates a private network where services can locate one another through 
 
 ### Environment Configuration
 
-Local configuration is provided through an ignored `.env` file. The committed `.env.example` documents the required variables without containing real secrets. Compose constructs Fider's database URL from the configured PostgreSQL username, password and database name.
+Local configuration is provided through an ignored `.env` file. The committed `.env.example` documents the required variables without containing real secrets. The local .env file provides Fider with a container-specific database URL that uses the PostgreSQL service name postgres.
 
 ### Startup Readiness
 
