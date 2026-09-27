@@ -157,4 +157,3 @@ docker compose logs --tail=100 fider postgres mailhog
 # Stop and remove containers while preserving database data
 docker compose down
 ```
-
