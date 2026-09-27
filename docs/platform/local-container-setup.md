@@ -87,8 +87,74 @@ Only the public application entry point should accept user traffic. EKS worker n
 
 ## Troubleshooting Evidence
 
+
 The container status showed Fider as running and healthy, with Windows port 3000 mapped to container port 3000. The startup logs confirmed that 95 database migrations were applied, the PostgreSQL and SMTP services were initialised and the HTTP server started on port 3000.
 
 A request finishing with HTTP status 200 confirmed that the application returned a successful response. SQL SELECT statements showed Fider reading data from PostgreSQL, while INSERT INTO posts showed a new suggestion being stored.
 
 The investigation also demonstrated the importance of filtering noisy logs. HTTP methods such as GET and POST describe communication between the browser and Fider, while SQL operations such as SELECT and INSERT describe communication between Fider and PostgreSQL.
+
+## Docker Compose Workflow
+
+Docker Compose manages the three services required for local development:
+
+- Fider provides the web application and listens internally on port `3000`.
+- PostgreSQL stores users, suggestions, comments and other application data.
+- MailHog captures development emails sent by Fider.
+
+Compose creates a private network where services can locate one another through Docker DNS. Fider connects to PostgreSQL using `postgres:5432` and sends email to MailHog using SMTP at `mailhog:1025`. The Fider application is available to the host at `http://localhost:3000`, while MailHog's HTTP interface is available at `http://localhost:8025`.
+
+### Environment Configuration
+
+Local configuration is provided through an ignored `.env` file. The committed `.env.example` documents the required variables without containing real secrets. Compose constructs Fider's database URL from the configured PostgreSQL username, password and database name.
+
+### Startup Readiness
+
+Starting a PostgreSQL container does not immediately prove that the database can accept connections. During initialisation, PostgreSQL prepares its files and creates the configured user and database.
+
+The PostgreSQL health check uses `pg_isready` to confirm that it can accept connections. Fider waits for this successful result before its container starts. Its startup command then runs outstanding database migrations before starting the web server.
+
+This prevents Fider from attempting migrations while PostgreSQL is still initialising.
+
+### Persistent Storage
+
+PostgreSQL stores its files in the named `postgres-data` volume. The volume exists separately from the PostgreSQL container.
+
+Persistence was tested by running `docker compose down`, confirming that the volume remained, recreating the containers and checking that the account and test suggestion still existed. This proved that containers can be replaced without deleting the application data.
+
+The volume must not be removed unless the local database data is intentionally being deleted.
+
+### Troubleshooting Docker DNS
+
+A deliberate failure was introduced by changing the database hostname from `postgres` to `wrong-postgres`. Fider exited during its migration step and produced the following error:
+
+```text
+dial tcp: lookup wrong-postgres on 127.0.0.11:53: no such host
+```
+
+The error showed that Fider asked Docker's internal DNS server to resolve a service that did not exist. Restoring the Compose service name `postgres` and recreating the Fider container restored the connection.
+
+This demonstrated that Compose service names act as internal hostnames.
+
+### Non-Root Runtime
+
+The runtime image creates a dedicated `fider` system user after completing the operating-system package installation. Ownership of `/app` is assigned to this user, and the Dockerfile switches to it before the health check and startup command run.
+
+This prevents the Fider process from running as root and limits the permissions available if the application is compromised.
+
+### Common Commands
+
+```bash
+# Build and start the complete environment
+docker compose up -d --build
+
+# Inspect service state and health
+docker compose ps
+
+# Read service logs
+docker compose logs --tail=100 fider postgres mailhog
+
+# Stop and remove containers while preserving database data
+docker compose down
+```
+
