@@ -65,6 +65,13 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 5
+      minio:
+        image: getfider/minio:0.0.2
+        ports:
+          - 9000:9000
+        env:
+          MINIO_ACCESS_KEY: s3user
+          MINIO_SECRET_KEY: s3user-s3cr3t
 
   container-image:
     needs: [frontend-checks, backend-checks, secret-scan]
@@ -92,6 +99,6 @@ jobs:
           scan-type: fs
           scan-ref: .
           scanners: secret
-          skip-files: 'etc/dev-fider-io.key,public/services/jwt.spec.ts'  
+          skip-files: 'etc/dev-fider-io.key,public/services/jwt.spec.ts'
           format: table
           exit-code: '1'
