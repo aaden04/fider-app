@@ -13,10 +13,54 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+
       - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: 'npm'
+
       - run: npm ci
       - run: make lint-ui
       - run: make test-ui
+
+  backend-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - run: go mod download
+
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.7.2
+          args: --timeout=3m
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - run: npm ci
+      - run: go install github.com/joho/godotenv/cmd/godotenv
+      - run: |
+          mkdir -p ./dist
+          make test-server
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: fider_test
+          POSTGRES_PASSWORD: fider_test_pw
+          POSTGRES_DB: fider_test
+        ports:
+          - 5566:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
