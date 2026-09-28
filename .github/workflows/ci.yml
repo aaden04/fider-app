@@ -92,5 +92,3 @@ jobs:
           scanners: secret
           format: table
           exit-code: "1"
-
-    
