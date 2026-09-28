@@ -92,5 +92,6 @@ jobs:
           scan-type: fs
           scan-ref: .
           scanners: secret
+          skip-files: 'etc/dev-fider-io.key,public/services/jwt.spec.ts'  
           format: table
           exit-code: '1'
