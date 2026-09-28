@@ -64,14 +64,14 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 5
-  container-image:
 
-    needs: [frontend-checks, backend-checks]
+  container-image:
+    needs: [frontend-checks, backend-checks, secret-scan]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - run: docker build -t fider-app-image:${{ github.sha }} .
-      - name: Scan container image with Trivy
+      - name: Scan container image with trivy
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
         with:
           image-ref: fider-app-image:${{ github.sha }}
@@ -79,4 +79,18 @@ jobs:
           scanners: vuln
           severity: HIGH,CRITICAL
           ignore-unfixed: true
-          exit-code: 1
+          exit-code: "1"
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Scan repository for secrets with trivy
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: secret
+          format: table
+          exit-code: "1"
+
+    
