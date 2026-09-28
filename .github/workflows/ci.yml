@@ -8,17 +8,18 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   frontend-checks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-
       - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: 'npm'
-
       - run: npm ci
       - run: make lint-ui
       - run: make test-ui
@@ -27,18 +28,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
-
       - run: go mod download
 
       - uses: golangci/golangci-lint-action@v9
         with:
           version: v2.7.2
           args: --timeout=3m
+
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -46,6 +46,7 @@ jobs:
 
       - run: npm ci
       - run: go install github.com/joho/godotenv/cmd/godotenv
+
       - run: |
           mkdir -p ./dist
           make test-server
@@ -71,7 +72,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: docker build -t fider-app-image:${{ github.sha }} .
-      - name: Scan container image with trivy
+      - name: Scan container image with Trivy
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
         with:
           image-ref: fider-app-image:${{ github.sha }}
@@ -79,16 +80,17 @@ jobs:
           scanners: vuln
           severity: HIGH,CRITICAL
           ignore-unfixed: true
-          exit-code: "1"
+          exit-code: '1'
+
   secret-scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Scan repository for secrets with trivy
+      - name: Scan repository for secrets with Trivy
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
         with:
           scan-type: fs
           scan-ref: .
           scanners: secret
           format: table
-          exit-code: "1"
+          exit-code: '1'
