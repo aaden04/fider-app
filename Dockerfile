@@ -41,6 +41,7 @@ FROM debian:bookworm-slim AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
+    perl-base \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --system fider \
